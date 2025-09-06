@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Dashboard</h2>
+    <div class="top-row">
+      <div>Logged in as: <span id="emailSpan"></span></div>
+      <div><button id="logoutBtn" class="btn small">Logout</button></div>
+    </div>
+    <div style="margin-top:12px;">
+      <button id="createBtn" class="btn">Create New Resume</button>
+    </div>
+    <h3 style="margin-top:18px;">Your resumes</h3>
+    <div id="list"></div>
+    <div id="msg" class="msg"></div>
+  </div>
+  <script>
+  const API = '/api';
+  const token = localStorage.getItem('token');
+  const email = localStorage.getItem('email') || '';
+  document.getElementById('emailSpan').textContent = email;
+  if(!token) location.href = '/login.html';
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('email');
+    location.href = '/login.html';
+  });
+
+  document.getElementById('createBtn').addEventListener('click', () => {
+    location.href = '/editor.html';
+  });
+
+  async function load(){
+    const res = await fetch(API + '/resumes', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if(res.status === 401) { localStorage.removeItem('token'); location.href='/login.html'; return; }
+    const data = await res.json();
+    const list = document.getElementById('list');
+    if(data.length===0) list.innerHTML = '<p>No resumes yet</p>';
+    else {
+      list.innerHTML = data.map(r => {
+        return `<div class="card">
+          <div class="card-title">${r.title}</div>
+          <div class="card-meta">Created: ${new Date(r.createdAt).toLocaleString()}</div>
+          <div class="card-actions">
+            <a class="btn small" href="/editor.html?id=${r.id}">Edit</a>
+            <a class="btn small" href="/view.html?id=${r.id}" target="_blank">Preview</a>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  load();
+  </script>
+</body>
+  </html>

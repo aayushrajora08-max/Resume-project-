@@ -1,0 +1,137 @@
+!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Editor</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Resume Editor</h2>
+    <div id="note" class="msg"></div>
+    <form id="editorForm">
+      <label>Title</label>
+      <input id="title" required />
+      <label>Full name</label>
+      <input id="fullName" />
+      <label>Email</label>
+      <input id="email" />
+      <label>Phone</label>
+      <input id="phone" />
+      <label>Summary</label>
+      <textarea id="summary" rows="3"></textarea>
+      <label>Education (one per line, format: School | Degree | Year)</label>
+      <textarea id="education" rows="3"></textarea>
+      <label>Experience (one per line, format: Company | Role | Years | bullets separated by ';')</label>
+      <textarea id="experience" rows="4"></textarea>
+      <label>Skills (comma separated)</label>
+      <input id="skills" />
+      <div style="margin-top:12px;">
+        <button class="btn" type="submit">Save Version</button>
+        <button id="previewBtn" class="btn" type="button">Preview (print)</button>
+        <a href="/dashboard.html" class="btn">Back</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+  const API = '/api';
+  const token = localStorage.getItem('token');
+  if(!token) location.href = '/login.html';
+
+  const params = new URLSearchParams(location.search);
+  const resumeId = params.get('id');
+
+  async function loadIfEdit(){
+    if(!resumeId) return;
+    const res = await fetch(API + '/resumes/' + resumeId, { headers: { Authorization: 'Bearer ' + token }});
+    if(!res.ok){ document.getElementById('note').textContent = 'Failed to load'; return; }
+    const data = await res.json();
+    document.getElementById('title').value = data.title;
+    const latest = data.versions[data.versions.length-1];
+    const d = latest.data || {};
+    document.getElementById('fullName').value = d.personal?.fullName || '';
+    document.getElementById('email').value = d.personal?.email || '';
+    document.getElementById('phone').value = d.personal?.phone || '';
+    document.getElementById('summary').value = d.summary || '';
+    document.getElementById('education').value = (d.education||[]).map(e=> [e.school,e.degree,e.year].join(' | ')).join('\\n');
+    document.getElementById('experience').value = (d.experience||[]).map(e => [e.company,e.role,e.years,(e.bullets||[]).join(';')].join(' | ')).join('\\n');
+    document.getElementById('skills').value = (d.skills||[]).join(', ');
+  }
+
+  function buildDataFromForm(){
+    const personal = {
+      fullName: document.getElementById('fullName').value,
+      email: document.getElementById('email').value,
+      phone: document.getElementById('phone').value
+    };
+    const summary = document.getElementById('summary').value;
+    const education = document.getElementById('education').value.split('\\n').filter(Boolean).map(line=>{
+      const [school, degree, year] = line.split('|').map(s=>s.trim());
+      return { school: school||'', degree: degree||'', year: year||'' };
+    });
+    const experience = document.getElementById('experience').value.split('\\n').filter(Boolean).map(line=>{
+      const parts = line.split('|').map(s=>s.trim());
+      return { company: parts[0]||'', role: parts[1]||'', years: parts[2]||'', bullets: (parts[3]||'').split(';').map(s=>s.trim()).filter(Boolean) };
+    });
+    const skills = document.getElementById('skills').value.split(',').map(s=>s.trim()).filter(Boolean);
+    return { personal, summary, education, experience, skills };
+  }
+
+  document.getElementById('editorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('title').value || 'Untitled';
+    const data = buildDataFromForm();
+    try{
+      if(!resumeId){
+        const res = await fetch(API + '/resumes', {
+          method: 'POST', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ title, data })
+        });
+        const body = await res.json();
+        if(res.ok){
+          alert('Saved. Redirecting to dashboard.');
+          location.href = '/dashboard.html';
+        } else {
+          alert(body.error || JSON.stringify(body));
+        }
+      } else {
+        const res = await fetch(API + '/resumes/' + resumeId + '/versions', {
+          method: 'POST', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ data })
+        });
+        const body = await res.json();
+        if(res.ok){
+          alert('New version saved.');
+          location.reload();
+        } else {
+          alert(body.error || JSON.stringify(body));
+        }
+      }
+    }catch(err){
+      alert('Network error');
+    }
+  });
+
+  document.getElementById('previewBtn').addEventListener('click', async () => {
+    const data = buildDataFromForm();
+    const w = window.open('', '_blank', 'width=800,height=900');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Resume Preview</title>
+    <style>body{font-family:Arial;padding:20px;} h1{margin-bottom:0;} .meta{color:#666;margin-bottom:10px;} .section{margin-top:14px;} .bul{margin-left:18px;}</style>
+    </head><body>
+    <h1>${data.personal.fullName || ''}</h1>
+    <div class="meta">${data.personal.email || ''} | ${data.personal.phone || ''}</div>
+    <div class="section"><strong>Summary</strong><div>${data.summary || ''}</div></div>
+    <div class="section"><strong>Education</strong>${data.education.map(e=>`<div>${e.school} — ${e.degree} (${e.year || ''})</div>`).join('')}</div>
+    <div class="section"><strong>Experience</strong>${data.experience.map(e=>`<div><strong>${e.company}</strong> — ${e.role} (${e.years || ''})<div class="bul">${(e.bullets||[]).map(b=>'<div>• '+b+'</div>').join('')}</div></div>`).join('')}</div>
+    <div class="section"><strong>Skills</strong><div>${(data.skills||[]).join(', ')}</div></div>
+    <script>window.onload = ()=>{window.print();}</script>
+    </body></html>`;
+    w.document.write(html);
+  });
+
+  // load existing if editing
+  loadIfEdit();
+  </script>
+</body>
+</html>

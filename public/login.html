@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container">
+    <h2>Log in</h2>
+    <form id="loginForm">
+      <label>Email</label>
+      <input id="email" type="email" required />
+      <label>Password</label>
+      <input id="password" type="password" required />
+      <button class="btn" type="submit">Log in</button>
+    </form>
+    <p>No account? <a href="/signup.html">Sign up</a></p>
+    <div id="msg" class="msg"></div>
+  </div>
+  <script>
+  const API = '/api';
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    try{
+      const res = await fetch(API + '/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email, password})
+      });
+      const data = await res.json();
+      const msg = document.getElementById('msg');
+      if(res.ok){
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('email', data.email || email);
+        msg.textContent = 'Login success. Redirecting to dashboard...';
+        setTimeout(()=> location.href = '/dashboard.html', 700);
+      } else {
+        msg.textContent = data.error || JSON.stringify(data);
+      }
+    }catch(err){
+      document.getElementById('msg').textContent = 'Network error';
+    }
+  });
+  </script>
+</body>
+</html>

@@ -24,8 +24,8 @@ function id() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-// Serve static frontend
-app.use(express.static(path.join(__dirname, "Public")));
+// Serve static frontend (note lowercase 'public')
+app.use(express.static(path.join(__dirname, "public")));
 
 // ---------------------- API Routes ----------------------
 
@@ -120,7 +120,7 @@ app.delete("/api/resumes/:id", auth, (req, res) => {
 
 // Catch-all route to serve frontend
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "Public", "index.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Start server

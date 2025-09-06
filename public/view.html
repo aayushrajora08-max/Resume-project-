@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Preview Resume</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="container" id="root">
+    <h2>Resume Preview</h2>
+    <div id="content"></div>
+    <div style="margin-top:12px;">
+      <button id="printBtn" class="btn">Print / Save as PDF</button>
+      <a href="/dashboard.html" class="btn">Back</a>
+    </div>
+  </div>
+  <script>
+  const API = '/api';
+  const token = localStorage.getItem('token');
+  if(!token) location.href = '/login.html';
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  async function load(){
+    const res = await fetch(API + '/resumes/' + id + '/latest', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if(!res.ok){ document.getElementById('content').textContent = 'Failed to load'; return; }
+    const v = await res.json();
+    const d = v.data || {};
+    const html = `<h1>${d.personal?.fullName || ''}</h1>
+      <div>${d.personal?.email || ''} | ${d.personal?.phone || ''}</div>
+      <h3>Summary</h3><div>${d.summary || ''}</div>
+      <h3>Education</h3>${(d.education||[]).map(e=>`<div>${e.school} — ${e.degree} (${e.year||''})</div>`).join('')}
+      <h3>Experience</h3>${(d.experience||[]).map(e=>`<div><strong>${e.company}</strong> — ${e.role} (${e.years||''})<div>${(e.bullets||[]).map(b=>'<div>• '+b+'</div>').join('')}</div></div>`).join('')}
+      <h3>Skills</h3><div>${(d.skills||[]).join(', ')}</div>`;
+    document.getElementById('content').innerHTML = html;
+  }
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+  load();
+  </script>
+</body>
+      </html>
